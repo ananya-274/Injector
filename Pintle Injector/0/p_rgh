@@ -1,0 +1,42 @@
+FoamFile
+{
+    format      ascii;
+    class       volScalarField;
+    location    "0";
+    object      p_rgh;
+}
+
+boundaryField
+{
+    inlet1
+    {
+        type        fixedFluxPressure;
+        value       2000000;
+    }
+
+    inlet2 
+    {
+        type        fixedFluxPressure;
+        value       2000000;
+    }
+
+    top wall
+    {
+        type        fixedFluxPressure;
+        value       2000000;
+    }
+
+    bottom wall
+    {
+        type        fixedFluxPressure;
+        value       2000000;
+    }
+
+    outlet
+    {
+        type        fixedValue;
+        value       101325;
+    }
+
+
+}

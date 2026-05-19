@@ -1,0 +1,158 @@
+reactingParcelFoam OpenFOAM v13 solver
+Lagrangian parcel tracking
+non-premixed combustion (via combustionModel)
+compressible RANS turbulence (k-ω SST)
+Discrete Particle Modellin. 
+It runs a PIMPLE loop for the gas phase and subcycles the Lagrangian cloud within each outer iteration.
+
+
+Since you are injecting liquid fuel (ethanol + water) and a liquid oxidizer (peroxide) through separate inlets, and they vaporize, mix, and burn, reactingParcelFoam (or its sister solver sprayFoam) is exactly the right choice. [1, 2, 3] 
+In this setup, the continuous phase inside the combustion chamber is a gas (initially air or nitrogen). The liquids from your two injectors are treated as Lagrangian parcel clouds that enter the chamber, evaporate/decompose into gas-phase species, mix, and undergo gas-phase combustion. [2, 4, 5] 
+------------------------------
+## Step 1: Track the Right Continuous (Gas) Species
+Your continuous phase needs to track the carrier gas, the evaporated liquid vapors, and the products of combustion. You must define these in constant/reactions and provide boundary conditions in the 0/ directory. [4] 
+
+* Fuel vapor species: C2H5OH (Ethanol), H2O (Water vapor)
+* Oxidizer vapor species: H2O2 (Hydrogen peroxide vapor) or its decomposition products (O2, H2O)
+* Carrier/Product species: N2, CO2
+
+------------------------------
+## Step 2: Configure constant/thermophysicalProperties
+Because you are tracking multiple evaporating liquid species and a gas-phase reaction, your continuous phase thermodynamic model must be configured as a multi-component reacting mixture. [4] 
+
+thermoType
+{
+    type            hePsiThermo; // Compressible, pressure-based
+    mixture         reactingMixture;
+    transport       sutherland;
+    thermo          janaf;
+    equationOfState perfectGas;
+    specie          specie;
+    energy          sensibleEnthalpy;
+}
+
+inertSpecie     N2; // Your background carrier gas
+
+chemistryReader            foamChemistryReader;
+foamChemistryFile          "$FOAM_CASE/constant/reactions";
+foamChemistryThermoFile    "$FOAM_CASE/constant/thermo.compressibleGas";
+
+------------------------------
+## Step 3: Configure constant/reactions
+You must define the chemical equation dictating how the gas-phase ethanol and peroxide react. [6] 
+
+* Option A (Direct combustion with peroxide vapor):
+If you assume the peroxide evaporates first, then burns with ethanol:
+$$C_2H_5OH + 6 H_2O_2 \rightarrow 2 CO_2 + 9 H_2O$$ 
+* Option B (Peroxide decomposition + Oxygen combustion):
+If your peroxide instantly decomposes thermally into water and oxygen ($2H_2O_2 \rightarrow 2H_2O + O_2$), you can set up a two-step mechanism or just let the ethanol burn with the resulting gaseous $O_2$:
+$$C_2H_5OH + 3 O_2 \rightarrow 2 CO_2 + 3 H_2O$$ 
+
+In your constant/reactions file, implement this using standard Arrhenius parameters: [6] 
+
+species
+(
+    C2H5OH
+    H2O2
+    O2
+    H2O
+    CO2
+    N2
+);
+
+reactions
+{
+    ethanolCombustion
+    {
+        type            ArrheniusReaction;
+        reaction        "C2H5OH + 3O2 = 2CO2 + 3H2O";
+        A               1.0e11; // Replace with actual kinetics
+        beta            0;
+        Ta              15000;
+    }
+}
+
+------------------------------
+## Step 4: Map Your Injectors in constant/parcelProperties
+Because you have two separate physical injectors, you must define two separate injection clouds within your Lagrangian dictionary.
+## Cloud 1: Fuel Injector (Multi-Component Liquid)
+Because your fuel is a blend of ethanol and water, you must use the multiComponentPhaseChangeModel to dictate how both components evaporate into the gas phase.
+
+fuelCloud
+{
+    // ... basic injection setup (position, velocity, parcel sizes) ...
+    
+    activeLiquids   ( C2H5OH H2O ); // The liquid components inside the drop
+
+    phaseChangeModel multiComponentPhaseChangeModel;
+    
+    liquids
+    {
+        C2H5OH { percentage 70; } // e.g., 70% ethanol
+        H2O    { percentage 30; } // e.g., 30% water
+    }
+}
+
+OpenFOAM will automatically match the liquid phase C2H5OH and H2O to the continuous phase gas fields 0/Y_C2H5OH and 0/Y_H2O as they evaporate.
+## Cloud 2: Oxidizer Injector (Liquid Peroxide)
+If your peroxide stream is pure (or diluted with water), define it as its own cloud:
+
+oxidizerCloud
+{
+    // ... position and velocity for the second inlet ...
+    
+    activeLiquids   ( H2O2 ); 
+
+    phaseChangeModel standardPhaseChangeModel; 
+}
+
+------------------------------
+## Step 5: Initialize Boundary Conditions (0/ Folder)
+You must create a field file for every species listed in your reactions file. If your chamber is initially filled with standard air, your 0/ folder files should look like this: [4] 
+
+* 0/Y_N2: Internal field 0.77, inlet patches 0.77
+* 0/Y_O2: Internal field 0.23, inlet patches 0.23
+* 0/Y_C2H5OH, 0/Y_H2O2, 0/Y_CO2, 0/Y_H2O: Internal fields 0, inlet patches 0 [4] 
+
+(Note: Even though fuel and oxidizer are entering through those patches, they enter as liquid parcels, not gas. Therefore, the gas-phase mass fraction (Y) at the inlets is 0 until the liquid droplets evaporate into the gas domain).
+If you would like help with any of these steps, let me know:
+
+* What OpenFOAM version are you using (e.g., v2312, OpenFOAM-11)?
+* Do you need assistance calculating the chemical kinetic parameters (Arrhenius coefficients) for the ethanol-peroxide reaction? [6] 
+
+
+[1] [https://www.tfd.chalmers.se](https://www.tfd.chalmers.se/~hani/kurser/OS_CFD_2013/SalmanArshad/Report_Salman-Arshad.pdf)
+[2] [https://arc.aiaa.org](https://arc.aiaa.org/doi/pdfplus/10.2514/1.B37286)
+[3] [https://www.cfd-online.com](https://www.cfd-online.com/Forums/openfoam-solving/240681-combustion-evaporating-fluid.html)
+[4] [https://www.fluiddynamics.at](https://www.fluiddynamics.at/downloads/openfoam-basic-training/_tutorials/Example_Eleven.pdf)
+[5] [https://help.sim-flow.com](https://help.sim-flow.com/solvers/simple-reacting-parcel-foam)
+[6] [https://cfdflowengineering.com](https://cfdflowengineering.com/combustion-modeling-in-openfoam/)
+
+
+
+
+0/ — initial & boundary conditions
+
+U	// velocity — flowRateInletVelocity at injector inlet
+
+p_rgh	// modified pressure
+
+T	// temperature — fixedValue inlet, zeroGradient outlet
+
+k	// turbulent KE — turbulentIntensityKineticEnergyInlet
+
+omega k-ω SST	// specific dissipation rate — replaces epsilon
+
+nut k-ω SST	// turbulent viscosity — calculated BC
+
+alphat	// turbulent thermal diffusivity
+
+Z combustion	// mixture fraction — fixedValue fuel=1, ox=0
+
+Zvar combustion	// mixture fraction variance
+
+Yi (CH4, O2, N2, CO2, H2O…) combustion	// species mass fractions
+
+
+
+constant/ — physics dictionaries
