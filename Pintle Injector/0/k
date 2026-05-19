@@ -1,0 +1,43 @@
+FoamFile 
+{  
+    format      ascii; 
+    class       volScalarField; 
+    object      k; 
+    location    "0";
+}
+
+dimensions [0 2 -2 0 0 0 0];   // m2/s2
+
+// k = 1.5*(U*I)^2  where I = turbulence intensity (~5%)
+internalField uniform 0.375;
+
+boundaryField
+{
+    inletFuel
+    {
+        type            turbulentIntensityKineticEnergyInlet;
+        intensity       0.05;           // 5% turbulence intensity
+        value           uniform 0.375;
+    }
+
+    inletOxidiser
+    {
+        type            turbulentIntensityKineticEnergyInlet;
+        intensity       0.05;
+        value           uniform 0.375;
+    }
+
+    outlet
+    {
+        type            inletOutlet;
+        inletValue      uniform 0.375;
+        value           uniform 0.375;
+    }
+
+    walls
+    {
+        type            kqRWallFunction;
+        value           uniform 0.375;
+    }
+
+}

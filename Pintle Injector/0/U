@@ -20,23 +20,23 @@ internalField   uniform (0 0 0);
 
 boundaryField
 {
-    inlet1
+    inletFuel
     {
         type            flowRateInletVelocity;
-        massFlowRate    constant 0.1;
+        massFlowRate    constant 0.036/22;
         profile         turbulentBL;
         value           uniform (0 0 0);         
     }
 
-    inlet2
+    inletOxidiser
     {
         type            flowRateInletVelocity;
-        massFlowRate    constant 0.1;
+        massFlowRate    constant 0.19/22;
         profile         turbulentBL;
         value           uniform (0 0 0);
     }
     
-    top wall
+    walls
     {
         type            noSlip;
     }
@@ -48,11 +48,6 @@ boundaryField
         value               <field value>;
         phi                 phi;
 
-    }
-
-    bottom wall
-    {
-        type            noSlip;
     }
 
     frontAndBack

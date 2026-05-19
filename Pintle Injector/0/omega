@@ -1,0 +1,47 @@
+FoamFile 
+{ 
+    version 2.0; 
+    format ascii; 
+    class volScalarField; 
+    object omega; 
+}
+
+dimensions [0 0 -1 0 0 0 0];   // 1/s
+
+// omega = k^0.5 / (Cmu^0.25 * L)
+// Cmu=0.09, L=hydraulic diameter/10 (turbulent length scale)
+// Example: k=0.375, L=0.002 m → omega ≈ 2800
+internalField uniform 2800;
+
+boundaryField
+{
+    inletFuel
+    {
+        type            turbulentMixingLengthFrequencyInlet;
+        mixingLength    0.002;          // ~10% of inlet hydraulic diameter
+        value           uniform 2800;
+    }
+
+    inletOxidiser
+    {
+        type            turbulentMixingLengthFrequencyInlet;
+        mixingLength    0.002;
+        value           uniform 2800;
+    }
+
+    outlet
+    {
+        type            inletOutlet;
+        inletValue      uniform 2800;
+        value           uniform 2800;
+    }
+
+    walls
+    {
+        // For y+~1 (low-Re k-omega SST): omegaWallFunction with blended yes
+        type            omegaWallFunction;
+        blended         yes;
+        value           uniform 2800;
+    }
+
+}

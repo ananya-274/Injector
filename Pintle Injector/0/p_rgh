@@ -8,25 +8,19 @@ FoamFile
 
 boundaryField
 {
-    inlet1
+    inletFuel
     {
         type        fixedFluxPressure;
-        value       2000000;
+        value       2800000;
     }
 
-    inlet2 
+    inletOxidiser
     {
         type        fixedFluxPressure;
-        value       2000000;
+        value       2130000;
     }
 
-    top wall
-    {
-        type        fixedFluxPressure;
-        value       2000000;
-    }
-
-    bottom wall
+    walls
     {
         type        fixedFluxPressure;
         value       2000000;

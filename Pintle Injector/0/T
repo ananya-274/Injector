@@ -1,0 +1,38 @@
+FoamFile
+{
+    format      ascii;
+    class       volScalarField;
+    location    "0";
+    object      T;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 0 0 1 0 0 0];
+
+internalField   uniform 300;
+
+boundaryField
+{
+    inlet1
+    {
+        type        fixedValue;
+        value       uniform 300;
+    }
+
+    inlet2
+    {
+        type        fixedValue;
+        value       uniform 300;
+    }
+
+    outlet
+    {
+        type        zeroradient;
+    }
+
+    walls
+    {
+        type        fixedValue;
+        value       uniform 300;
+    }
+}
